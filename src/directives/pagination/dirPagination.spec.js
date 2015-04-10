@@ -210,6 +210,16 @@ describe('dirPagination directive', function() {
             expect(compile).toThrow("pagination directive: the pagination controls cannot be used without the corresponding pagination directive.");
         });
 
+        it('should not throw an exception if the dir-paginate directive has not be set up and is marked as standalone', function() {
+            function compile() {
+                var html = '<dir-pagination-controls standalone="true"></dir-pagination-controls>';
+                containingElement.append($compile(html)($scope));
+                $scope.$apply();
+            }
+
+            expect(compile).not.toThrow();
+        });
+
         it('should not display pagination if all rows fit on one page', function() {
             compileElement(myCollection, 9999);
             var paginationLinks = getPageLinksArray();

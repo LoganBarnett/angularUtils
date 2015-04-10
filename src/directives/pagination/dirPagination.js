@@ -220,7 +220,8 @@
             scope: {
                 maxSize: '=?',
                 onPageChange: '&?',
-                paginationId: '=?'
+                paginationId: '=?',
+                standalone: '=?'
             },
             link: dirPaginationControlsLinkFn
         };
@@ -230,9 +231,13 @@
             // rawId is the un-interpolated value of the pagination-id attribute. This is only important when the corresponding dir-paginate directive has
             // not yet been linked (e.g. if it is inside an ng-if block), and in that case it prevents this controls directive from assuming that there is
             // no corresponding dir-paginate directive and wrongly throwing an exception.
+            var standalone = scope.standalone || false;
             var rawId = attrs.paginationId ||  DEFAULT_ID;
             var paginationId = scope.paginationId || attrs.paginationId ||  DEFAULT_ID;
 
+            if (standalone) {
+                paginationService.registerInstance(paginationId);
+            }
             if (!paginationService.isRegistered(paginationId) && !paginationService.isRegistered(rawId)) {
                 var idMessage = (paginationId !== DEFAULT_ID) ? ' (id: ' + paginationId + ') ' : ' ';
                 throw 'pagination directive: the pagination controls' + idMessage + 'cannot be used without the corresponding pagination directive.';
