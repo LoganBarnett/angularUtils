@@ -36,7 +36,7 @@
     module
         .directive('dirPaginate', ['$compile', '$parse', 'paginationService', dirPaginateDirective])
         .directive('dirPaginateNoCompile', noCompileDirective)
-        .directive('dirPaginationControls', ['paginationService', 'paginationTemplate', dirPaginationControlsDirective])
+        .directive('dirPaginationControls', ['paginationService', 'paginationTemplate', '$parse', dirPaginationControlsDirective])
         .filter('itemsPerPage', ['paginationService', itemsPerPageFilter])
         .service('paginationService', paginationService)
         .provider('paginationTemplate', paginationTemplateProvider);
@@ -208,7 +208,7 @@
         };
     }
 
-    function dirPaginationControlsDirective(paginationService, paginationTemplate) {
+    function dirPaginationControlsDirective(paginationService, paginationTemplate, $parse) {
 
         var numberRegex = /^\d+$/;
 
@@ -221,7 +221,9 @@
                 maxSize: '=?',
                 onPageChange: '&?',
                 paginationId: '=?',
-                standalone: '=?'
+                standalone: '=?',
+                standaloneCollection: '=?',
+                standaloneTotalItems: '=?'
             },
             link: dirPaginationControlsLinkFn
         };
@@ -241,6 +243,29 @@
             if (!paginationService.isRegistered(paginationId) && !paginationService.isRegistered(rawId)) {
                 var idMessage = (paginationId !== DEFAULT_ID) ? ' (id: ' + paginationId + ') ' : ' ';
                 throw 'pagination directive: the pagination controls' + idMessage + 'cannot be used without the corresponding pagination directive.';
+            }
+
+            if (standalone) {
+                var currentPageGetter = makeCurrentPageGetterFn(scope, attrs, paginationId);
+                paginationService.setCurrentPageParser(paginationId, currentPageGetter, scope);
+
+                if (typeof attrs.totalItems !== 'undefined') {
+                    paginationService.setAsyncModeTrue(paginationId);
+                    scope.$watch(function() {
+                        return $parse(attrs.standaloneTotalItems)(scope);
+                    }, function (result) {
+                        if (0 <= result) {
+                            paginationService.setCollectionLength(paginationId, result);
+                        }
+                    });
+                } else {
+                    scope.$watchCollection('standaloneCollection',
+                        function(collection) {
+                            if (collection) {
+                                paginationService.setCollectionLength(paginationId, collection.length);
+                            }
+                    });
+                }
             }
 
             if (!scope.maxSize) { scope.maxSize = 9; }
@@ -289,6 +314,28 @@
                     paginationService.setCurrentPage(paginationId, num);
                 }
             };
+
+            /**
+             * Creates a getter function for the standalone-current-page attribute, using the expression provided or a default value if
+             * no standalone-current-page expression was specified.
+             *
+             * @param scope
+             * @param attrs
+             * @param paginationId
+             * @returns {*}
+             */
+            function makeCurrentPageGetterFn(scope, attrs, paginationId) {
+                var currentPageGetter;
+                if (attrs.standaloneCurrentPage) {
+                    currentPageGetter = $parse(attrs.standaloneCurrentPage);
+                } else {
+                    // if the current-page attribute was not set, we'll make our own
+                    var defaultCurrentPage = paginationId + '__currentPage';
+                    scope[defaultCurrentPage] = 1;
+                    currentPageGetter = $parse(defaultCurrentPage);
+                }
+                return currentPageGetter;
+            }
 
             function goToPage(num) {
                 if (isValidPageNumber(num)) {
